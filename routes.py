@@ -243,6 +243,8 @@ def test():
     """"""
     # получаю результаты, формирую пользователя new в БД и записываю.
     # Просчитываю для него рекомендации и записываю в БД.
+    test_results = request.form['test_results']
+
     status = "не готово"
     return {"status": status}
 
