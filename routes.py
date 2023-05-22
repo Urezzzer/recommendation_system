@@ -1,0 +1,292 @@
+from app import db, app, Locations, Categories, Groups
+import json
+from flask import request, jsonify
+from sqlalchemy import inspect
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql.expression import func
+from sqlalchemy.sql.operators import ilike_op
+
+
+def object_as_dict(obj):
+    return {c.key: getattr(obj, c.key)
+            for c in inspect(obj).mapper.column_attrs}
+
+
+@app.route('/init', methods=['GET'])
+def init():
+    """Метод получения пользователей для ротации и категорий фильтрации"""
+    """ return:
+    { "users": [],
+      "categories": [
+                {"name": "string",
+                "options": []},
+                ... ,
+                {"name": "string",
+                "options": []},
+      ],
+      "presets": [
+                {
+                "name": "",
+                "value_type": "boolean"
+                },
+                ...,
+                {
+                }
+                ]
+    }"""
+
+    # getting users from db
+    users = [0, 1, 2, 3]
+
+    # getting categories from db
+    group_categories_from_db = [object_as_dict(row) for row in
+                                Categories.query.all()]
+
+    group_categories_dict = {}
+    for elem in group_categories_from_db:
+        if elem['category_1'] not in group_categories_dict.keys():
+            group_categories_dict[elem['category_1']] = []
+        else:
+            group_categories_dict[elem['category_1']].append(elem['category_2'])
+
+    group_categories = []
+    for item in group_categories_dict.items():
+        group_categories.append({'category': item[0],
+                                 'subcategory': item[1]})
+
+    group_categories = {'name': 'Направления',
+                        'options': group_categories}
+
+    # format
+    format = {'name': 'Формат',
+              'options': ['Онлайн', 'Очно']}
+
+    # getting locations from db
+    locations_from_db = [object_as_dict(row) for row in
+                         Locations.query.all()]
+
+    locations_dict = {}
+    for elem in locations_from_db:
+        if elem['district'] not in locations_dict.keys():
+            locations_dict[elem['district']] = []
+        else:
+            locations_dict[elem['district']].append(elem['region'])
+
+    locations = []
+    for item in locations_dict.items():
+        locations.append({'category': item[0],
+                          'subcategory': item[1]})
+
+    locations = {'name': 'Район',
+                 'options': locations}
+
+    # weekdays
+    weekdays = {'name': 'Дни недели',
+                'options': ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']}
+
+    categories = [group_categories, format, locations, weekdays]
+
+    presets = [
+        {"name": "Рядом с вами",
+         "value_type": "boolean"}
+    ]
+
+    return {
+        "users": users,
+        "categories": categories,
+        "presets": presets
+    }
+
+
+@app.route('/personal_recommendations', methods=['POST'])
+def personal_recommendations():
+    """Метод получения пользовательских рекомендаций"""
+    """arguments: user_id"""
+    """ return:
+    [{
+        "region": "",
+        "street": "",
+        "home": "",
+        "online": bool, 
+        "name": "",
+        "description": "",
+        "group_id": "",
+        "active_schedule": [[weekday, time], [weekday, time]] or [[weekday, time]],
+        "active_group": bool
+    },
+    ... ,
+    {
+    }]"""
+
+    user_id = request.form['user_id']
+    # some operations
+    groups = [object_as_dict(row) for row in
+              Groups.query.where(Groups.active_group == 1).order_by(func.random()).limit(10)]
+    return groups
+
+
+@app.route('/search_results', methods=['POST'])
+def search_results():
+    """Метод получения результатов поиска"""
+    """arguments: 
+    { "user": "",
+      "string_to_search": "",
+      "categories": [
+                {"name": "string",
+                "options": []},
+                ... ,
+                {"name": "string",
+                "options": []}
+                    ],
+      "presets": [
+                {
+                "name": "",
+                "value": bool
+                },
+                ...,
+                {
+                }
+                ]
+    }"""
+    """ return:
+    {
+    groups: [{
+        "region": "",
+        "street": "",
+        "home": "",
+        "online": bool, 
+        "name": "",
+        "description": "",
+        "group_id": "",
+        "active_schedule": [[weekday, time], [weekday, time]] or [[weekday, time]],
+        "active_group": bool
+    },
+    ... ,
+    {
+    }],
+    number_of_groups: integer
+    }"""
+
+    user_id = request.form['user_id']
+    string_to_search = request.form['string_to_search']
+    categories = request.form['categories']
+    presets = request.form['presets']
+
+    if string_to_search == "":
+        groups = [object_as_dict(row) for row in
+                  Groups.query.where(Groups.active_group == 1).order_by(func.random()).limit(2000)]
+    else:
+        groups = [object_as_dict(row) for row in
+                  Groups.query.filter((Groups.active_group == 1) &
+                                      (Groups.name.like(f'%{string_to_search.lower()}%')))]
+
+    return {"groups": groups,
+            "number_of_groups": len(groups)}
+
+
+@app.route('/similar_user_based_recommendations', methods=['POST'])
+def similar_user_based_recommendations():
+    """Метод получения пользовательских рекомендаций основанных на схожести пользователей"""
+    """arguments: user_id"""
+    """ return:
+    [{
+        "region": "",
+        "street": "",
+        "home": "",
+        "online": bool, 
+        "name": "",
+        "description": "",
+        "group_id": "",
+        "active_schedule": [[weekday, time], [weekday, time]] or [[weekday, time]],
+        "active_group": bool
+    },
+    ... ,
+    {
+    }]"""
+
+    user_id = request.form['user_id']
+    # some operations
+    groups = Groups.query.where(Groups.active_group == 1).order_by(func.random()).limit(10)
+
+    return [object_as_dict(row) for row in groups]
+
+
+@app.route('/expand_recommendations', methods=['POST'])
+def expand_recommendations():
+    """Метод получения рекомендаций для вывода пользователя из информационного пузыря"""
+    """arguments: user_id"""
+    """ return:
+    [{
+        "region": "",
+        "street": "",
+        "home": "",
+        "online": bool, 
+        "name": "",
+        "description": "",
+        "group_id": "",
+        "active_schedule": [[weekday, time], [weekday, time]] or [[weekday, time]],
+        "active_group": bool
+    },
+    ... ,
+    {
+    }]"""
+    user_id = request.form['user_id']
+    # some operations
+    groups = Groups.query.where(Groups.active_group == 1).order_by(func.random()).limit(10)
+
+    return [object_as_dict(row) for row in groups]
+
+
+@app.route('/test', methods=['POST'])
+def test():
+    """Метод для получения результатов теста"""
+    """"""
+    # получаю результаты, формирую пользователя new в БД и записываю.
+    # Просчитываю для него рекомендации и записываю в БД.
+    status = "не готово"
+    return {"status": status}
+
+# import pandas as pd
+# from tqdm import tqdm
+#
+#
+# @app.route('/', methods=['GET'])
+# def load_data():
+#     Locations.query.delete()
+#     Categories.query.delete()
+#     Groups.query.delete()
+#
+#     locations = pd.read_csv('backend_data/locations.csv', sep=';')
+#     for i, row in tqdm(locations.iterrows()):
+#         db.session.add(Locations(district=row['district'], region=row['region']))
+#         db.session.commit()
+#
+#     value = object_as_dict(Locations.query.filter_by(district='юго-восточный административный округ').first())
+#     l_success = bool(value)
+#
+#     categories = pd.read_csv('backend_data/categories.csv', sep=';')
+#     for i, row in tqdm(categories.iterrows()):
+#         db.session.add(Categories(category_1=row['category 1'], category_2=row['category 2'], name=row['name']))
+#         db.session.commit()
+#
+#     value = object_as_dict(Categories.query.filter_by(category_1='физическая активность').first())
+#     c_success = bool(value)
+#
+#     groups = pd.read_csv('backend_data/groups.csv', sep=';')
+#     for i, row in tqdm(groups.iterrows()):
+#         db.session.add(Groups(group_id=row['group_id'], category_1=row['category 1'], category_2=row['category 2'],
+#                               name=row['name'], district=row['district'], region=row['region'], street=row['street'],
+#                               home=row['home'], online=row['online'],
+#                               description=row['description'],
+#                               weekday_1=row['weekday_1'],
+#                               weekday_2=row['weekday_2'],
+#                               active_schedule=row['active_shedule'],
+#                               active_group=row['active_group']))
+#         db.session.commit()
+#
+#     value = object_as_dict(Groups.query.filter_by(district='юго-восточный административный округ').first())
+#     g_success = bool(value)
+#
+#     return jsonify({
+#         'success': l_success and g_success and c_success
+#     })
