@@ -195,13 +195,16 @@ def search_results():
         user_region = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_region']
         groups = [object_as_dict(row) for row in
                   Groups.query.filter(*filter_list).filter(Groups.region == user_region).filter(Groups.online == format)]
-    if preset_close_to_user:
+    elif preset_close_to_user:
         user_region = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_region']
         groups = [object_as_dict(row) for row in
                   Groups.query.filter(*filter_list).filter(Groups.region == user_region)]
-    if type(format) == bool:
+    elif type(format) == bool:
         groups = [object_as_dict(row) for row in
                   Groups.query.filter(*filter_list).filter(Groups.online == format)]
+    else:
+        groups = [object_as_dict(row) for row in
+                  Groups.query.filter(*filter_list)]
 
     return {"groups": groups,
             "number_of_groups": len(groups)}
