@@ -74,8 +74,8 @@ def init():
 
     locations = []
     for item in locations_dict.items():
-        locations.append({'district': item[0],
-                          'region': item[1]})
+        locations.append({'category': item[0],
+                          'subcategory': item[1]})
 
     locations = {'name': 'Район',
                  'options': locations}
@@ -83,12 +83,12 @@ def init():
     # weekdays
     weekdays = {'name': 'Дни недели',
                 'options': [{'full': 'Понедельник', 'short': 'Пн'},
-                            {'full': 'Понедельник', 'short': 'Пн'},
-                            {'full': 'Понедельник', 'short': 'Пн'},
-                            {'full': 'Понедельник', 'short': 'Пн'},
-                            {'full': 'Понедельник', 'short': 'Пн'},
-                            {'full': 'Понедельник', 'short': 'Пн'},
-                            {'full': 'Понедельник', 'short': 'Пн'}]}
+                            {'full': 'Вторник', 'short': 'Вт'},
+                            {'full': 'Среда', 'short': 'Ср'},
+                            {'full': 'Четверг', 'short': 'Чт'},
+                            {'full': 'Пятница', 'short': 'Пт'},
+                            {'full': 'Суббота', 'short': 'Сб'},
+                            {'full': 'Воскресенье', 'short': 'Вс'}]}
 
     categories = [group_categories, format, locations, weekdays]
 
@@ -147,16 +147,19 @@ def search_results():
     }"""
 
     x = request.json
-    presets = x['presets']
     categories = x['categories']
 
     user_id = x['user_id']
     string_to_search = x['string_to_search']
+    presets = x['presets']
 
-    if presets:
-        preset_close_to_user = True
-    else:
-        preset_close_to_user = False
+    preset_close_to_user = False
+    popular = False
+    for preset in presets:
+        if preset['name'] == 'Рядом с вами':
+            preset_close_to_user = True
+        if preset['name'] == 'Популярное':
+            popular = True
 
     directions = []
     format = ''
@@ -233,8 +236,8 @@ def expand_recommendations():
     return groups
 
 
-@app.route('/test', methods=['POST'])
-def test():
+@app.route('/create_new_user', methods=['POST'])
+def create_new_user():
     """Метод для получения результатов теста"""
     """"""
     # получаю результаты, формирую пользователя new в БД и записываю.
