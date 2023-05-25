@@ -5,7 +5,7 @@ from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import func
 from sqlalchemy.sql.operators import ilike_op
-
+from sqlalchemy import or_
 
 def object_as_dict(obj):
     return {c.key: getattr(obj, c.key)
@@ -161,19 +161,43 @@ def search_results():
         if preset['name'] == 'Популярное':
             popular = True
 
-    directions = []
-    format = ''
-    weekdays = []
-    locations = []
+    for filter in categories:
+        if filter['name'] == 'Направления':
+            directions = filter['options']
+            directions = [subdirection['name'] for direction in directions for subdirection in direction['options']]
+        elif filter['name'] == 'Формат':
+            format = filter['options']
+            if len(format) == 2 or len(format) == 0:
+                format = ''
+            elif len(format) == 1:
+                if format[0]['name'] == 'Очно':
+                    format = False
+                elif format[0]['name'] == 'Онлайн':
+                    format = True
+        elif filter['name'] == 'Дни недели':
+            weekdays = filter['options']
+            weekdays = [weekday['name'] for weekday in weekdays]
+        elif filter['name'] == 'Район':
+            locations = filter['options']
+            locations = [region['name'] for location in locations for region in location['options']]
 
-    # categories
+    filter_list = list()
+    filter_list.append(Groups.name.like(f'%{string_to_search.lower()}%'))
 
-    if string_to_search == "":
-        groups = [object_as_dict(row) for row in
-                  Groups.query.order_by(func.random()).limit(2000)]
-    else:
-        groups = [object_as_dict(row) for row in
-                  Groups.query.filter(Groups.name.like(f'%{string_to_search.lower()}%'))]
+    if type(format) == bool:
+        filter_list.append(Groups.online == format)
+    if weekdays:
+        filter_list.append(or_(Groups.weekday_1.in_(weekdays), Groups.weekday_2.in_(weekdays)))
+    if locations:
+        filter_list.append(Groups.region.in_(locations))
+    if directions:
+        filter_list.append(Groups.category_2.in_(directions))
+    if preset_close_to_user:
+        user_region = object_as_dict(Users.query.filter(Users.user_id == user_id))['user_region']
+        filter_list.append(Groups.region == user_region)
+
+    groups = [object_as_dict(row) for row in
+                  Groups.query.filter(*filter_list)]
 
     return {"groups": groups,
             "number_of_groups": len(groups)}
