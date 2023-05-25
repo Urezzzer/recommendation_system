@@ -149,7 +149,7 @@ def search_results():
     x = request.json
     categories = x['categories']
 
-    user_id = x['user_id']
+    user_id = str(x['user_id'])
     string_to_search = x['string_to_search']
     presets = x['presets']
 
@@ -184,20 +184,24 @@ def search_results():
     filter_list = list()
     filter_list.append(Groups.name.like(f'%{string_to_search.lower()}%'))
 
-    if type(format) == bool:
-        filter_list.append(Groups.online == format)
     if weekdays:
         filter_list.append(or_(Groups.weekday_1.in_(weekdays), Groups.weekday_2.in_(weekdays)))
     if locations:
         filter_list.append(Groups.region.in_(locations))
     if directions:
         filter_list.append(Groups.category_2.in_(directions))
-    if preset_close_to_user:
-        user_region = object_as_dict(Users.query.filter(Users.user_id == user_id))['user_region']
-        filter_list.append(Groups.region == user_region)
 
-    groups = [object_as_dict(row) for row in
-                  Groups.query.filter(*filter_list)]
+    if preset_close_to_user and type(format) == bool:
+        user_region = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_region']
+        groups = [object_as_dict(row) for row in
+                  Groups.query.filter(*filter_list).filter(Groups.region == user_region).filter(Groups.online == format)]
+    if preset_close_to_user:
+        user_region = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_region']
+        groups = [object_as_dict(row) for row in
+                  Groups.query.filter(*filter_list).filter(Groups.region == user_region)]
+    if type(format) == bool:
+        groups = [object_as_dict(row) for row in
+                  Groups.query.filter(*filter_list).filter(Groups.online == format)]
 
     return {"groups": groups,
             "number_of_groups": len(groups)}
