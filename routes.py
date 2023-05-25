@@ -94,6 +94,8 @@ def init():
 
     presets = [
         {"name": "Рядом с вами",
+         "value_type": "boolean"},
+        {"name": "Популярное",
          "value_type": "boolean"}
     ]
 
@@ -185,16 +187,32 @@ def search_results():
     filter_list.append(Groups.name.like(f'%{string_to_search.lower()}%'))
 
     if weekdays:
+        print(weekdays)
         filter_list.append(or_(Groups.weekday_1.in_(weekdays), Groups.weekday_2.in_(weekdays)))
     if locations:
         filter_list.append(Groups.region.in_(locations))
     if directions:
         filter_list.append(Groups.category_2.in_(directions))
 
-    if preset_close_to_user and type(format) == bool:
+    if preset_close_to_user and type(format) == bool and popular:
         user_region = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_region']
         groups = [object_as_dict(row) for row in
-                  Groups.query.filter(*filter_list).filter(Groups.region == user_region).filter(Groups.online == format)]
+                  Groups.query.filter(*filter_list).filter(Groups.region == user_region).
+                  filter(Groups.online == format).order_by(Groups.popularity.desc())]
+    elif preset_close_to_user and type(format) == bool:
+        user_region = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_region']
+        groups = [object_as_dict(row) for row in
+                  Groups.query.filter(*filter_list).filter(Groups.region == user_region).
+                  filter(Groups.online == format)]
+    elif preset_close_to_user and popular:
+        user_region = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_region']
+        groups = [object_as_dict(row) for row in
+                  Groups.query.filter(*filter_list).filter(Groups.region == user_region).
+                  order_by(Groups.popularity.desc())]
+    elif popular and type(format) == bool:
+        groups = [object_as_dict(row) for row in
+                  Groups.query.filter(*filter_list).
+                  filter(Groups.online == format).order_by(Groups.popularity.desc())]
     elif preset_close_to_user:
         user_region = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_region']
         groups = [object_as_dict(row) for row in
@@ -202,6 +220,9 @@ def search_results():
     elif type(format) == bool:
         groups = [object_as_dict(row) for row in
                   Groups.query.filter(*filter_list).filter(Groups.online == format)]
+    elif popular:
+        groups = [object_as_dict(row) for row in
+                  Groups.query.filter(*filter_list).order_by(Groups.popularity.desc())]
     else:
         groups = [object_as_dict(row) for row in
                   Groups.query.filter(*filter_list)]
@@ -314,7 +335,8 @@ def create_new_user():
 #                               description=row['description'],
 #                               weekday_1=row['weekday_1'],
 #                               weekday_2=row['weekday_2'],
-#                               active_schedule=row['active_shedule']))
+#                               active_schedule=row['active_shedule'],
+#                               popularity=row['popularity']))
 #         db.session.commit()
 #
 #     value = object_as_dict(Groups.query.filter_by(district='юго-восточный административный округ').first())

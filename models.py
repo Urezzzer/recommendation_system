@@ -17,6 +17,7 @@ class Groups(db.Model):
     weekday_1 = db.Column(db.String(120), nullable=True)
     weekday_2 = db.Column(db.String(120), nullable=True)
     active_schedule = db.Column(db.Text(), nullable=True)
+    popularity = db.Column(db.Integer, nullable=True)
 
     def __repr__(self):
         return str({'id': self.group_id,
