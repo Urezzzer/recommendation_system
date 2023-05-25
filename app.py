@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_apscheduler import APScheduler
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db?charset=utf16'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SCHEDULER_API_ENABLED'] = True
 scheduler = APScheduler()

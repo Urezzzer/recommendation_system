@@ -1,4 +1,4 @@
-from app import db, app, Locations, Categories, Groups
+from app import db, app, Locations, Categories, Groups, Users, PersonalRecs, ExpandRecs
 import json
 from flask import request, jsonify
 from sqlalchemy import inspect
@@ -36,7 +36,7 @@ def init():
     }"""
 
     # getting users from db
-    users = [0, 1, 2, 3]
+    users = [101347983, 101352015, 101431770]
 
     # getting categories from db
     group_categories_from_db = [object_as_dict(row) for row in
@@ -74,15 +74,21 @@ def init():
 
     locations = []
     for item in locations_dict.items():
-        locations.append({'category': item[0],
-                          'subcategory': item[1]})
+        locations.append({'district': item[0],
+                          'region': item[1]})
 
     locations = {'name': 'Район',
                  'options': locations}
 
     # weekdays
     weekdays = {'name': 'Дни недели',
-                'options': ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']}
+                'options': [{'full': 'Понедельник', 'short': 'Пн'},
+                            {'full': 'Понедельник', 'short': 'Пн'},
+                            {'full': 'Понедельник', 'short': 'Пн'},
+                            {'full': 'Понедельник', 'short': 'Пн'},
+                            {'full': 'Понедельник', 'short': 'Пн'},
+                            {'full': 'Понедельник', 'short': 'Пн'},
+                            {'full': 'Понедельник', 'short': 'Пн'}]}
 
     categories = [group_categories, format, locations, weekdays]
 
@@ -96,33 +102,6 @@ def init():
         "categories": categories,
         "presets": presets
     }
-
-
-@app.route('/personal_recommendations', methods=['POST'])
-def personal_recommendations():
-    """Метод получения пользовательских рекомендаций"""
-    """arguments: user_id"""
-    """ return:
-    [{
-        "region": "",
-        "street": "",
-        "home": "",
-        "online": bool, 
-        "name": "",
-        "description": "",
-        "group_id": "",
-        "active_schedule": [[weekday, time], [weekday, time]] or [[weekday, time]],
-        "active_group": bool
-    },
-    ... ,
-    {
-    }]"""
-
-    user_id = request.form['user_id']
-    # some operations
-    groups = [object_as_dict(row) for row in
-              Groups.query.where(Groups.active_group == 1).order_by(func.random()).limit(10)]
-    return groups
 
 
 @app.route('/search_results', methods=['POST'])
@@ -167,26 +146,39 @@ def search_results():
     number_of_groups: integer
     }"""
 
-    user_id = request.form['user_id']
-    string_to_search = request.form['string_to_search']
-    categories = request.form['categories']
-    presets = request.form['presets']
+    x = request.json
+    presets = x['presets']
+    categories = x['categories']
+
+    user_id = x['user_id']
+    string_to_search = x['string_to_search']
+
+    if presets:
+        preset_close_to_user = True
+    else:
+        preset_close_to_user = False
+
+    directions = []
+    format = ''
+    weekdays = []
+    locations = []
+
+    # categories
 
     if string_to_search == "":
         groups = [object_as_dict(row) for row in
-                  Groups.query.where(Groups.active_group == 1).order_by(func.random()).limit(2000)]
+                  Groups.query.order_by(func.random()).limit(2000)]
     else:
         groups = [object_as_dict(row) for row in
-                  Groups.query.filter((Groups.active_group == 1) &
-                                      (Groups.name.like(f'%{string_to_search.lower()}%')))]
+                  Groups.query.filter(Groups.name.like(f'%{string_to_search.lower()}%'))]
 
     return {"groups": groups,
             "number_of_groups": len(groups)}
 
 
-@app.route('/similar_user_based_recommendations', methods=['POST'])
-def similar_user_based_recommendations():
-    """Метод получения пользовательских рекомендаций основанных на схожести пользователей"""
+@app.route('/personal_recommendations', methods=['POST'])
+def personal_recommendations():
+    """Метод получения пользовательских рекомендаций"""
     """arguments: user_id"""
     """ return:
     [{
@@ -204,11 +196,13 @@ def similar_user_based_recommendations():
     {
     }]"""
 
-    user_id = request.form['user_id']
-    # some operations
-    groups = Groups.query.where(Groups.active_group == 1).order_by(func.random()).limit(10)
+    user_id = str(request.form['user_id'])
+    groups_to_rec = [object_as_dict(row)['group_id'] for row in
+                     PersonalRecs.query.filter(PersonalRecs.user_id == user_id)]
 
-    return [object_as_dict(row) for row in groups]
+    groups = [object_as_dict(row) for row in
+              Groups.query.filter(Groups.group_id.in_(groups_to_rec))]
+    return groups
 
 
 @app.route('/expand_recommendations', methods=['POST'])
@@ -230,11 +224,13 @@ def expand_recommendations():
     ... ,
     {
     }]"""
-    user_id = request.form['user_id']
-    # some operations
-    groups = Groups.query.where(Groups.active_group == 1).order_by(func.random()).limit(10)
+    user_id = str(request.form['user_id'])
+    groups_to_rec = [object_as_dict(row)['group_id'] for row in
+                     ExpandRecs.query.filter(ExpandRecs.user_id == user_id)]
 
-    return [object_as_dict(row) for row in groups]
+    groups = [object_as_dict(row) for row in
+              Groups.query.filter(Groups.group_id.in_(groups_to_rec))]
+    return groups
 
 
 @app.route('/test', methods=['POST'])
@@ -243,7 +239,7 @@ def test():
     """"""
     # получаю результаты, формирую пользователя new в БД и записываю.
     # Просчитываю для него рекомендации и записываю в БД.
-    test_results = request.form['test_results']
+    test_results = request.json
 
     status = "не готово"
     return {"status": status}
@@ -251,12 +247,14 @@ def test():
 # import pandas as pd
 # from tqdm import tqdm
 #
-#
 # @app.route('/', methods=['GET'])
 # def load_data():
 #     Locations.query.delete()
 #     Categories.query.delete()
 #     Groups.query.delete()
+#     PersonalRecs.query.delete()
+#     ExpandRecs.query.delete()
+#     Users.query.delete()
 #
 #     locations = pd.read_csv('backend_data/locations.csv', sep=';')
 #     for i, row in tqdm(locations.iterrows()):
@@ -282,13 +280,36 @@ def test():
 #                               description=row['description'],
 #                               weekday_1=row['weekday_1'],
 #                               weekday_2=row['weekday_2'],
-#                               active_schedule=row['active_shedule'],
-#                               active_group=row['active_group']))
+#                               active_schedule=row['active_shedule']))
 #         db.session.commit()
 #
 #     value = object_as_dict(Groups.query.filter_by(district='юго-восточный административный округ').first())
 #     g_success = bool(value)
 #
+#     users = pd.read_csv('backend_data/users.csv', sep=';')
+#     for i, row in tqdm(users.iterrows()):
+#         db.session.add(Users(user_id=row['user_id'],
+#                              sex=row['sex'],
+#                              age=row['age'],
+#                              active_in_months=row['active_in_months'],
+#                              active_in_years=row['active_in_years'],
+#                              user_district=row['user_district'],
+#                              user_region=row['user_region']))
+#         db.session.commit()
+#
+#     value = object_as_dict(Users.query.filter_by(sex=1).first())
+#     u_success = bool(value)
+#
+#     per_recs = pd.read_csv('backend_data/demo_best_predict.csv', sep=';')
+#     for i, row in tqdm(per_recs.iterrows()):
+#         db.session.add(PersonalRecs(user_id=str(row['user_id']), group_id=str(row['group_id'])))
+#         db.session.commit()
+#
+#     expand_recs = pd.read_csv('backend_data/predict_to_expand.csv', sep=';')
+#     for i, row in tqdm(expand_recs.iterrows()):
+#         db.session.add(ExpandRecs(user_id=str(row['user_id']), group_id=str(row['group_id'])))
+#         db.session.commit()
+#
 #     return jsonify({
-#         'success': l_success and g_success and c_success
+#         'success': u_success and g_success and c_success and l_success
 #     })

@@ -17,7 +17,6 @@ class Groups(db.Model):
     weekday_1 = db.Column(db.String(120), nullable=True)
     weekday_2 = db.Column(db.String(120), nullable=True)
     active_schedule = db.Column(db.Text(), nullable=True)
-    active_group = db.Column(db.Boolean, nullable=True)
 
     def __repr__(self):
         return str({'id': self.group_id,
@@ -59,17 +58,6 @@ class PersonalRecs(db.Model):
                     'group_id': self.group_id})
 
 
-class SimilarUserBasedRecs(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(120), nullable=True)
-    group_id = db.Column(db.String(120), nullable=True)
-
-    def __repr__(self):
-        return str({'id': self.id,
-                    'user_id': self.user_id,
-                    'group_id': self.group_id})
-
-
 class ExpandRecs(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(120), nullable=True)
@@ -79,3 +67,19 @@ class ExpandRecs(db.Model):
         return str({'id': self.id,
                     'user_id': self.user_id,
                     'group_id': self.group_id})
+
+
+class Users(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(120), nullable=True)
+    sex = db.Column(db.Integer, nullable=True)
+    age = db.Column(db.Integer, nullable=True)
+    active_in_months = db.Column(db.Integer, nullable=True)
+    active_in_years = db.Column(db.Integer, nullable=True)
+    user_district = db.Column(db.String(120), nullable=True)
+    user_region = db.Column(db.String(120), nullable=True)
+
+    def __repr__(self):
+        return str({'id': self.id,
+                    'user_id': self.user_id,
+                    'user_district': self.user_district})
