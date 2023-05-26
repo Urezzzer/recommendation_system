@@ -54,7 +54,7 @@ def init():
     for elem in group_categories_from_db:
         if elem['category_1'] not in group_categories_dict.keys():
             group_categories_dict[elem['category_1']] = []
-        else:
+        elif elem['category_2'] not in group_categories_dict[elem['category_1']]:
             group_categories_dict[elem['category_1']].append(elem['category_2'])
 
     group_categories = []
@@ -77,7 +77,7 @@ def init():
     for elem in locations_from_db:
         if elem['district'] not in locations_dict.keys():
             locations_dict[elem['district']] = []
-        else:
+        elif elem['region'] not in locations_dict[elem['district']]:
             locations_dict[elem['district']].append(elem['region'])
 
     locations = []
