@@ -8,7 +8,7 @@ from sqlalchemy import or_
 
 import json
 import random
-
+from random import shuffle
 
 def object_as_dict(obj):
     return {c.key: getattr(obj, c.key)
@@ -321,7 +321,7 @@ def create_new_user():
     full_group_ids = [object_as_dict(row)['group_id'] for row in
                       Groups.query.order_by(func.random()).all()]
 
-    for row in group_ids[:10]:
+    for row in shuffle(group_ids)[:10]:
         db.session.add(PersonalRecs(user_id='new', group_id=row))
         db.session.commit()
 
