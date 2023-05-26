@@ -70,6 +70,19 @@ class ExpandRecs(db.Model):
                     'group_id': self.group_id})
 
 
+class Ranks(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(120), nullable=True)
+    group_id = db.Column(db.String(120), db.ForeignKey('groups.group_id'), nullable=True)
+    score = db.Column(db.Float(), nullable=True)
+
+    def __repr__(self):
+        return str({'id': self.id,
+                    'user_id': self.user_id,
+                    'group_id': self.group_id,
+                    'score': self.score})
+
+
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(120), nullable=True)

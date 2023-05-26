@@ -1,10 +1,9 @@
-from app import db, app, Locations, Categories, Groups, Users, PersonalRecs, ExpandRecs
+from app import db, app, Locations, Categories, Groups, Users, PersonalRecs, ExpandRecs, Ranks
 import json
 from flask import request, jsonify
 from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import func
-from sqlalchemy.sql.operators import ilike_op
 from sqlalchemy import or_
 
 def object_as_dict(obj):
@@ -36,7 +35,8 @@ def init():
     }"""
 
     # getting users from db
-    users = [101347983, 101352015, 101431770]
+    users = [object_as_dict(row)['user_id'] for row in
+             Users.query.all()]
 
     # getting categories from db
     group_categories_from_db = [object_as_dict(row) for row in
@@ -96,7 +96,9 @@ def init():
         {"name": "Рядом с вами",
          "value_type": "boolean"},
         {"name": "Популярное",
-         "value_type": "boolean"}
+         "value_type": "boolean"},
+        {"name": "Для вас",
+         "value_type": "boolean"},
     ]
 
     return {
@@ -156,12 +158,16 @@ def search_results():
     presets = x['presets']
 
     preset_close_to_user = False
-    popular = False
+    sort = False
     for preset in presets:
         if preset['name'] == 'Рядом с вами':
             preset_close_to_user = True
         if preset['name'] == 'Популярное':
-            popular = True
+            sort = True
+            sort_type = 'popular'
+        if preset['name'] == 'Для вас':
+            sort = True
+            sort_type = 'relevant'
 
     for filter in categories:
         if filter['name'] == 'Направления':
@@ -187,45 +193,55 @@ def search_results():
     filter_list.append(Groups.name.like(f'%{string_to_search.lower()}%'))
 
     if weekdays:
-        print(weekdays)
         filter_list.append(or_(Groups.weekday_1.in_(weekdays), Groups.weekday_2.in_(weekdays)))
     if locations:
         filter_list.append(Groups.region.in_(locations))
     if directions:
         filter_list.append(Groups.category_2.in_(directions))
-
-    if preset_close_to_user and type(format) == bool and popular:
+    if type(format) == bool:
+        filter_list.append(Groups.online.in_(format))
+    if preset_close_to_user:
         user_region = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_region']
-        groups = [object_as_dict(row) for row in
-                  Groups.query.filter(*filter_list).filter(Groups.region == user_region).
-                  filter(Groups.online == format).order_by(Groups.popularity.desc())]
-    elif preset_close_to_user and type(format) == bool:
-        user_region = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_region']
-        groups = [object_as_dict(row) for row in
-                  Groups.query.filter(*filter_list).filter(Groups.region == user_region).
-                  filter(Groups.online == format)]
-    elif preset_close_to_user and popular:
-        user_region = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_region']
-        groups = [object_as_dict(row) for row in
-                  Groups.query.filter(*filter_list).filter(Groups.region == user_region).
-                  order_by(Groups.popularity.desc())]
-    elif popular and type(format) == bool:
-        groups = [object_as_dict(row) for row in
-                  Groups.query.filter(*filter_list).
-                  filter(Groups.online == format).order_by(Groups.popularity.desc())]
-    elif preset_close_to_user:
-        user_region = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_region']
-        groups = [object_as_dict(row) for row in
-                  Groups.query.filter(*filter_list).filter(Groups.region == user_region)]
-    elif type(format) == bool:
-        groups = [object_as_dict(row) for row in
-                  Groups.query.filter(*filter_list).filter(Groups.online == format)]
-    elif popular:
-        groups = [object_as_dict(row) for row in
-                  Groups.query.filter(*filter_list).order_by(Groups.popularity.desc())]
+        filter_list.append(Groups.region.in_([user_region]))
+    if sort:
+        if sort_type == 'popular':
+            groups = [object_as_dict(row) for row in
+                  Groups.query.filter(*filter_list).order_by(Groups.popularity.desc())[:500]]
+        if sort_type == 'relevant':
+            #groups = [object_as_dict(row) for row in
+            #          Groups.query.filter(*filter_list).join(
+            #              Ranks.query.filter(Ranks.user_id == user_id)
+            #          ).order_by(Ranks.score.desc())[:500]]
+            groups = [{'score': row.score,
+                       'group_id': row.group_id,
+                       'name': row.name,
+                       'category_1': row.category_1,
+                       'category_2': row.category_2,
+                       'district': row.district,
+                       'region': row.region,
+                       'street': row.street,
+                       'home': row.home,
+                       'online': row.online,
+                       'active_schedule': row.active_schedule,
+                       'description': row.description} for row in
+                      Ranks.query.filter(Ranks.user_id == str(user_id)).outerjoin(Groups).add_columns(
+                          Ranks.score,
+                          Groups.group_id,
+                          Groups.name,
+                          Groups.category_1,
+                          Groups.category_2,
+                          Groups.district,
+                          Groups.region,
+                          Groups.street,
+                          Groups.home,
+                          Groups.online,
+                          Groups.active_schedule,
+                          Groups.description).
+                      filter(*filter_list).
+                      order_by(Ranks.score.desc())[:500]]
     else:
         groups = [object_as_dict(row) for row in
-                  Groups.query.filter(*filter_list)]
+                  Groups.query.filter(*filter_list)[:500]]
 
     return {"groups": groups,
             "number_of_groups": len(groups)}
@@ -310,6 +326,7 @@ def create_new_user():
 #     PersonalRecs.query.delete()
 #     ExpandRecs.query.delete()
 #     Users.query.delete()
+#     Ranks.query.delete()
 #
 #     locations = pd.read_csv('backend_data/locations.csv', sep=';')
 #     for i, row in tqdm(locations.iterrows()):
@@ -353,10 +370,10 @@ def create_new_user():
 #                              user_region=row['user_region']))
 #         db.session.commit()
 #
-#     value = object_as_dict(Users.query.filter_by(sex=1).first())
+#     value = object_as_dict(Users.query.first())
 #     u_success = bool(value)
 #
-#     per_recs = pd.read_csv('backend_data/demo_best_predict.csv', sep=';')
+#     per_recs = pd.read_csv('backend_data/predict_best.csv', sep=';')
 #     for i, row in tqdm(per_recs.iterrows()):
 #         db.session.add(PersonalRecs(user_id=str(row['user_id']), group_id=str(row['group_id'])))
 #         db.session.commit()
@@ -366,6 +383,16 @@ def create_new_user():
 #         db.session.add(ExpandRecs(user_id=str(row['user_id']), group_id=str(row['group_id'])))
 #         db.session.commit()
 #
+#     ranks = pd.read_csv('backend_data/group_scores_to_rank.csv', sep=';')
+#     for i, row in tqdm(ranks.iterrows()):
+#         db.session.add(Ranks(user_id=int(row['user_id']),
+#                              group_id=int(row['group_id']),
+#                              score=float(row['score'])))
+#         db.session.commit()
+#
+#     value = object_as_dict(Ranks.query.first())
+#     r_success = bool(value)
+#
 #     return jsonify({
-#         'success': u_success and g_success and c_success and l_success
+#         'success': u_success and g_success and c_success and l_success and r_success
 #     })
