@@ -96,9 +96,7 @@ def init():
         {"name": "Рядом с вами",
          "value_type": "boolean"},
         {"name": "Популярное",
-         "value_type": "boolean"},
-        {"name": "Для вас",
-         "value_type": "boolean"},
+         "value_type": "boolean"}
     ]
 
     return {
@@ -164,10 +162,6 @@ def search_results():
             preset_close_to_user = True
         if preset['name'] == 'Популярное':
             sort = True
-            sort_type = 'popular'
-        if preset['name'] == 'Для вас':
-            sort = True
-            sort_type = 'relevant'
 
     for filter in categories:
         if filter['name'] == 'Направления':
@@ -201,47 +195,39 @@ def search_results():
     if type(format) == bool:
         filter_list.append(Groups.online.in_(format))
     if preset_close_to_user:
-        user_region = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_region']
-        filter_list.append(Groups.region.in_([user_region]))
+        user_district = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_district']
+        filter_list.append(Groups.district.in_([user_district]))
     if sort:
-        if sort_type == 'popular':
-            groups = [object_as_dict(row) for row in
-                  Groups.query.filter(*filter_list).order_by(Groups.popularity.desc())[:500]]
-        if sort_type == 'relevant':
-            #groups = [object_as_dict(row) for row in
-            #          Groups.query.filter(*filter_list).join(
-            #              Ranks.query.filter(Ranks.user_id == user_id)
-            #          ).order_by(Ranks.score.desc())[:500]]
-            groups = [{'score': row.score,
-                       'group_id': row.group_id,
-                       'name': row.name,
-                       'category_1': row.category_1,
-                       'category_2': row.category_2,
-                       'district': row.district,
-                       'region': row.region,
-                       'street': row.street,
-                       'home': row.home,
-                       'online': row.online,
-                       'active_schedule': row.active_schedule,
-                       'description': row.description} for row in
-                      Ranks.query.filter(Ranks.user_id == str(user_id)).outerjoin(Groups).add_columns(
-                          Ranks.score,
-                          Groups.group_id,
-                          Groups.name,
-                          Groups.category_1,
-                          Groups.category_2,
-                          Groups.district,
-                          Groups.region,
-                          Groups.street,
-                          Groups.home,
-                          Groups.online,
-                          Groups.active_schedule,
-                          Groups.description).
-                      filter(*filter_list).
-                      order_by(Ranks.score.desc())[:500]]
-    else:
         groups = [object_as_dict(row) for row in
-                  Groups.query.filter(*filter_list)[:500]]
+                Groups.query.filter(*filter_list).order_by(Groups.popularity.desc())[:500]]
+    else:
+        groups = [{'score': row.score,
+                   'group_id': row.group_id,
+                   'name': row.name,
+                   'category_1': row.category_1,
+                   'category_2': row.category_2,
+                   'district': row.district,
+                   'region': row.region,
+                   'street': row.street,
+                   'home': row.home,
+                   'online': row.online,
+                   'active_schedule': row.active_schedule,
+                   'description': row.description} for row in
+                  Ranks.query.filter(Ranks.user_id == str(user_id)).outerjoin(Groups).add_columns(
+                      Ranks.score,
+                      Groups.group_id,
+                      Groups.name,
+                      Groups.category_1,
+                      Groups.category_2,
+                      Groups.district,
+                      Groups.region,
+                      Groups.street,
+                      Groups.home,
+                      Groups.online,
+                      Groups.active_schedule,
+                      Groups.description).
+                  filter(*filter_list).
+                  order_by(Ranks.score.desc())[:500]]
 
     return {"groups": groups,
             "number_of_groups": len(groups)}
