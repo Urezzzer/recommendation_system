@@ -9,6 +9,7 @@ from sqlalchemy import or_
 import json
 import random
 
+
 def object_as_dict(obj):
     return {c.key: getattr(obj, c.key)
             for c in inspect(obj).mapper.column_attrs}
@@ -315,10 +316,10 @@ def create_new_user():
     db.session.commit()
 
     group_ids = [object_as_dict(row)['group_id'] for row in
-              Groups.query.filter(Groups.online == format).filter(Groups.category_2.in_(test_results))]
+                 Groups.query.filter(Groups.online == format).filter(Groups.category_2.in_(test_results))]
 
     full_group_ids = [object_as_dict(row)['group_id'] for row in
-                 Groups.query.order_by(func.random()).all()]
+                      Groups.query.order_by(func.random()).all()]
 
     for row in group_ids[:10]:
         db.session.add(PersonalRecs(user_id='new', group_id=row))
@@ -392,7 +393,8 @@ def create_new_user():
 #                              active_in_months=row['active_in_months'],
 #                              active_in_years=row['active_in_years'],
 #                              user_district=row['user_district'],
-#                              user_region=row['user_region']))
+#                              user_region=row['user_region'],
+#                              history=row['name']))
 #         db.session.commit()
 #
 #     value = object_as_dict(Users.query.first())
