@@ -205,6 +205,7 @@ def search_results():
     if preset_close_to_user:
         user_district = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_district']
         filter_list.append(Groups.district.in_([user_district]))
+        filter_list.append(Groups.online.in_(False))
     if sort:
         groups = [object_as_dict(row) for row in
                   Groups.query.filter(*filter_list).order_by(Groups.popularity.desc())[:500]]
