@@ -1,10 +1,13 @@
 from app import db, app, Locations, Categories, Groups, Users, PersonalRecs, ExpandRecs, Ranks
-import json
+
 from flask import request, jsonify
 from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import func
 from sqlalchemy import or_
+
+import json
+import random
 
 def object_as_dict(obj):
     return {c.key: getattr(obj, c.key)
@@ -33,9 +36,13 @@ def init():
                 }
                 ]
     }"""
-
+    Users.query.filter_by(user_id='new').delete()
+    Ranks.query.filter_by(user_id='new').delete()
+    PersonalRecs.query.filter_by(user_id='new').delete()
+    ExpandRecs.query.filter_by(user_id='new').delete()
+    db.session.commit()
     # getting users from db
-    users = [object_as_dict(row)['user_id'] for row in
+    users = [object_as_dict(row) for row in
              Users.query.all()]
 
     # getting categories from db
@@ -199,7 +206,7 @@ def search_results():
         filter_list.append(Groups.district.in_([user_district]))
     if sort:
         groups = [object_as_dict(row) for row in
-                Groups.query.filter(*filter_list).order_by(Groups.popularity.desc())[:500]]
+                  Groups.query.filter(*filter_list).order_by(Groups.popularity.desc())[:500]]
     else:
         groups = [{'score': row.score,
                    'group_id': row.group_id,
@@ -256,7 +263,6 @@ def personal_recommendations():
     user_id = str(request.form['user_id'])
     groups_to_rec = [object_as_dict(row)['group_id'] for row in
                      PersonalRecs.query.filter(PersonalRecs.user_id == user_id)]
-
     groups = [object_as_dict(row) for row in
               Groups.query.filter(Groups.group_id.in_(groups_to_rec))]
     return groups
@@ -296,10 +302,42 @@ def create_new_user():
     """"""
     # получаю результаты, формирую пользователя new в БД и записываю.
     # Просчитываю для него рекомендации и записываю в БД.
-    test_results = request.json
+    test_results = [question['answer'] for question in request.json['questions']]
 
-    status = "не готово"
-    return {"status": status}
+    if test_results[0] == 'очный':
+        format = False
+    elif test_results[0] == 'онлайн':
+        format = True
+
+    test_results = test_results[1:]
+
+    db.session.add(Users(user_id='new'))
+    db.session.commit()
+
+    group_ids = [object_as_dict(row)['group_id'] for row in
+              Groups.query.filter(Groups.online == format).filter(Groups.category_2.in_(test_results))]
+
+    full_group_ids = [object_as_dict(row)['group_id'] for row in
+                 Groups.query.order_by(func.random()).all()]
+
+    for row in group_ids[:10]:
+        db.session.add(PersonalRecs(user_id='new', group_id=row))
+        db.session.commit()
+
+    for row in full_group_ids[:10]:
+        db.session.add(ExpandRecs(user_id='new', group_id=row))
+        db.session.commit()
+
+    for row in full_group_ids:
+        score = 0
+        if row in group_ids:
+            score = 1
+        db.session.add(Ranks(user_id='new',
+                             group_id=row,
+                             score=score))
+        db.session.commit()
+
+    return {'status': bool(object_as_dict(Users.query.filter(Users.user_id == 'new').first()))}
 
 # import pandas as pd
 # from tqdm import tqdm
@@ -313,6 +351,7 @@ def create_new_user():
 #     ExpandRecs.query.delete()
 #     Users.query.delete()
 #     Ranks.query.delete()
+#     db.session.commit()
 #
 #     locations = pd.read_csv('backend_data/locations.csv', sep=';')
 #     for i, row in tqdm(locations.iterrows()):
