@@ -202,11 +202,11 @@ def search_results():
     if directions:
         filter_list.append(Groups.category_2.in_(directions))
     if type(format) == bool:
-        filter_list.append(Groups.online.in_(format))
+        filter_list.append(Groups.online == format)
     if preset_close_to_user:
         user_district = object_as_dict(Users.query.filter(Users.user_id == user_id).first())['user_district']
         filter_list.append(Groups.district.in_([user_district]))
-        filter_list.append(Groups.online.in_(False))
+        filter_list.append(Groups.online == True)
     if sort:
         groups = [object_as_dict(row) for row in
                   Groups.query.filter(*filter_list).order_by(Groups.popularity.desc())[:500]]
@@ -342,7 +342,6 @@ def create_new_user():
         db.session.commit()
 
     return {'status': bool(object_as_dict(Users.query.filter(Users.user_id == 'new').first()))}
-
 
 # import pandas as pd
 # from tqdm import tqdm
