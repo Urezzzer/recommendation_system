@@ -10,6 +10,7 @@ import json
 import random
 from random import shuffle
 
+
 def object_as_dict(obj):
     return {c.key: getattr(obj, c.key)
             for c in inspect(obj).mapper.column_attrs}
@@ -318,11 +319,12 @@ def create_new_user():
 
     group_ids = [object_as_dict(row)['group_id'] for row in
                  Groups.query.filter(Groups.online == format).filter(Groups.category_2.in_(test_results))]
+    shuffle(group_ids)
 
     full_group_ids = [object_as_dict(row)['group_id'] for row in
                       Groups.query.order_by(func.random()).all()]
 
-    for row in shuffle(group_ids)[:10]:
+    for row in group_ids[:10]:
         db.session.add(PersonalRecs(user_id='new', group_id=row))
         db.session.commit()
 
@@ -341,8 +343,10 @@ def create_new_user():
 
     return {'status': bool(object_as_dict(Users.query.filter(Users.user_id == 'new').first()))}
 
+
 # import pandas as pd
 # from tqdm import tqdm
+#
 #
 # @app.route('/', methods=['GET'])
 # def load_data():
@@ -395,7 +399,8 @@ def create_new_user():
 #                              active_in_years=row['active_in_years'],
 #                              user_district=row['user_district'],
 #                              user_region=row['user_region'],
-#                              history=row['name']))
+#                              history=row['history'],
+#                              name=row['name']))
 #         db.session.commit()
 #
 #     value = object_as_dict(Users.query.first())

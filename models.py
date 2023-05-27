@@ -95,6 +95,7 @@ class Users(db.Model):
     user_district = db.Column(db.String(120), nullable=True)
     user_region = db.Column(db.String(120), nullable=True)
     history = db.Column(db.String(120), nullable=True)
+    name = db.Column(db.String(120), nullable=True)
 
     def __repr__(self):
         return str({'id': self.id,
