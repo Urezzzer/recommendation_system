@@ -265,7 +265,7 @@ def personal_recommendations():
 
     user_id = str(request.form['user_id'])
     groups_to_rec = [object_as_dict(row)['group_id'] for row in
-                     PersonalRecs.query.filter(PersonalRecs.user_id == user_id)]
+                     PersonalRecs.query.filter(PersonalRecs.user_id == user_id).order_by(PersonalRecs.score.desc())]
     groups = [object_as_dict(row) for row in
               Groups.query.filter(Groups.group_id.in_(groups_to_rec))]
     return groups
@@ -292,7 +292,7 @@ def expand_recommendations():
     }]"""
     user_id = str(request.form['user_id'])
     groups_to_rec = [object_as_dict(row)['group_id'] for row in
-                     ExpandRecs.query.filter(ExpandRecs.user_id == user_id)]
+                     ExpandRecs.query.filter(ExpandRecs.user_id == user_id).order_by(ExpandRecs.score.desc())]
 
     groups = [object_as_dict(row) for row in
               Groups.query.filter(Groups.group_id.in_(groups_to_rec))]
@@ -408,12 +408,12 @@ def create_new_user():
 #
 #     per_recs = pd.read_csv('backend_data/predict_best.csv', sep=';')
 #     for i, row in tqdm(per_recs.iterrows()):
-#         db.session.add(PersonalRecs(user_id=str(row['user_id']), group_id=str(row['group_id'])))
+#         db.session.add(PersonalRecs(user_id=int(row['user_id']), group_id=int(row['group_id']), score=float(row['score'])))
 #         db.session.commit()
 #
 #     expand_recs = pd.read_csv('backend_data/predict_to_expand.csv', sep=';')
 #     for i, row in tqdm(expand_recs.iterrows()):
-#         db.session.add(ExpandRecs(user_id=str(row['user_id']), group_id=str(row['group_id'])))
+#         db.session.add(ExpandRecs(user_id=int(row['user_id']), group_id=int(row['group_id']), score=float(row['score'])))
 #         db.session.commit()
 #
 #     ranks = pd.read_csv('backend_data/group_scores_to_rank.csv', sep=';')

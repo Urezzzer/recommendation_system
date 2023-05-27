@@ -54,6 +54,7 @@ class PersonalRecs(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(120), nullable=True)
     group_id = db.Column(db.String(120), db.ForeignKey('groups.group_id'), nullable=True)
+    score = db.Column(db.Float(), nullable=True)
 
     def __repr__(self):
         return str({'id': self.id,
@@ -65,6 +66,7 @@ class ExpandRecs(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(120), nullable=True)
     group_id = db.Column(db.String(120), db.ForeignKey('groups.group_id'), nullable=True)
+    score = db.Column(db.Float(), nullable=True)
 
     def __repr__(self):
         return str({'id': self.id,
