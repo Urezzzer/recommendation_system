@@ -1,5 +1,9 @@
-.idea
+../.idea
 env/
-research/
-backend_data/
-submission.csv
+server/backend_data/
+research/backend_data
+research/model_data
+research/models
+research/processed_data_1_stage
+research/processed_data_2_stage
+research/raw_data
